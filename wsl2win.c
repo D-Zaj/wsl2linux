@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #define BUF_SIZE (8*1024)
+#define ESCAPE_CHAR '\''
 
 static char tmp_buf[BUF_SIZE] = {0};
 int tmp_size = 0;
@@ -52,22 +53,28 @@ void tmp_clean()
     end = tmp_buf;
 }
 
+static char stdin_buf[BUF_SIZE];
+char* get_filename_from_stdin()
+{
+    int i = 0;
+    char* cursor = stdin_buf;
+    char next_char;
+    while ((next_char = getchar()) != -1 && next_char != '\n') {
+        *cursor++ = next_char;
+    }
+    *cursor = '\0';
+    return stdin_buf;
+}
+
 int main(int argc, char** argv)
 {
     unsigned int piped = !isatty(fileno(stdin));
-    const char* filepath;
-    const char pipe[BUF_SIZE];
+    char* filepath;
 
+    /******** Figure out filepath from input ************/
     if (argc < 2) {
         if (piped) {
-            int i = 0;
-            char* cursor = pipe;
-            char next_char;
-            while ((next_char = getchar()) != -1 && next_char != '\n') {
-                *cursor++ = next_char;
-            }
-            *cursor = '\0';
-            filepath = pipe;
+            filepath = get_filename_from_stdin();
         } else {
             printf("Usage: %s <path-to-convert>\n", argv[0]);
             exit(1);
@@ -84,13 +91,18 @@ int main(int argc, char** argv)
 
     // Add an extra sep char if not present in start of provided path
     if (*filepath != '/') tmp_append_chr('\\');
-    while (*filepath) {
-        if (*filepath == '/') {
-            tmp_append_chr('\\');
-        } else {
-            tmp_append_chr(*filepath);
-        }
-        filepath++;
+
+    unsigned int contains_space;
+    char* tok = strtok(filepath, "/");
+
+    while (tok != NULL) {
+        // wrap token in "s if it contains a space
+        contains_space = strchr(tok, ' ') != NULL;
+        if (contains_space) tmp_append_chr(ESCAPE_CHAR);
+        tmp_append_cstr(tok);
+        if (contains_space) tmp_append_chr(ESCAPE_CHAR);
+        tmp_append_chr('\\');
+        tok = strtok(NULL, "/");
     }
     tmp_append_chr('\0');
     printf("Result: %s\n", result);
