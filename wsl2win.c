@@ -53,6 +53,19 @@ void tmp_clean()
     end = tmp_buf;
 }
 
+static char* tokens[BUF_SIZE] = {0};
+int token_count = 0;
+
+void append_token(char* tok)
+{
+    tokens[token_count++] = tok;
+}
+
+void pop_token()
+{
+    token_count--;
+}
+
 static char stdin_buf[BUF_SIZE];
 char* get_filename_from_stdin()
 {
@@ -83,6 +96,20 @@ int main(int argc, char** argv)
         // if something is provided, assume that's the desired filepath
         filepath = argv[1];
     }
+
+    /******* Work towards converting to absolute path *********/
+
+    char cwd_buf[BUF_SIZE];
+    char *cwd_path = getcwd(cwd_buf, BUF_SIZE);
+    if (cwd_path == NULL) {
+        fprintf(stderr, "ERROR: pathname of cwd exceeds provided buffer size.\n");
+        exit(1);
+    }
+    printf("CWD: %s\n", cwd_path);
+    char* fullpath = tmp_end();
+    tmp_append_cstr(cwd_path);
+    tmp_append_chr('/');
+    tmp_append_cstr(filepath);
 
     char* result = tmp_end();
 
