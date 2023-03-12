@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #define BUF_SIZE (8*1024)
+#define WSL_PREFIX "\\\\wsl$\\"
 #define ESCAPE_CHAR '\''
 
 static char tmp_buf[BUF_SIZE] = {0};
@@ -97,7 +98,7 @@ int main(int argc, char** argv)
         filepath = argv[1];
     }
 
-    /******* Work towards converting to absolute path *********/
+    /******* Work towards converting to absolute normalized path *********/
 
     char cwd_buf[BUF_SIZE];
     char *cwd_path = getcwd(cwd_buf, BUF_SIZE);
@@ -106,30 +107,45 @@ int main(int argc, char** argv)
         exit(1);
     }
     printf("CWD: %s\n", cwd_path);
-    char* fullpath = tmp_end();
-    tmp_append_cstr(cwd_path);
-    tmp_append_chr('/');
-    tmp_append_cstr(filepath);
+    char* fullpath;
+
+    // Check if provided path is already absolute
+    if (filepath[0] != '/') {
+        fullpath = tmp_end();
+        tmp_append_cstr(cwd_path); tmp_append_chr('/');
+        tmp_append_cstr(filepath); tmp_append_chr('\0');
+        printf("Full path: %s\n", fullpath);
+    } else {
+        fullpath = filepath;
+    }
+
+    char* tok = strtok(fullpath, "/");
+    while (tok != NULL) {
+        if (strncmp(tok, "..", 2) == 0 && token_count > 0) {
+            pop_token();
+        } else if (*tok == '.') {
+            // Ignore single dots
+        } else {
+            append_token(tok);
+        }
+        tok = strtok(NULL, "/");
+    }
 
     char* result = tmp_end();
 
-    //TODO: this is a placeholder, figure out a way of actually getting the current WSL root path
-    tmp_append_cstr("\\\\wsl$\\Ubuntu");
-
-    // Add an extra sep char if not present in start of provided path
-    if (*filepath != '/') tmp_append_chr('\\');
+    char* wsl_distro_name = getenv("WSL_DISTRO_NAME");
+    tmp_append_cstr(WSL_PREFIX);
+    tmp_append_cstr(wsl_distro_name);
 
     unsigned int contains_space;
-    char* tok = strtok(filepath, "/");
-
-    while (tok != NULL) {
+    for (int i = 0; i < token_count; i++) {
+        tmp_append_chr('\\');
         // wrap token in "s if it contains a space
+        tok = tokens[i];
         contains_space = strchr(tok, ' ') != NULL;
         if (contains_space) tmp_append_chr(ESCAPE_CHAR);
         tmp_append_cstr(tok);
         if (contains_space) tmp_append_chr(ESCAPE_CHAR);
-        tmp_append_chr('\\');
-        tok = strtok(NULL, "/");
     }
     tmp_append_chr('\0');
     printf("Result: %s\n", result);
