@@ -1,2 +1,2 @@
-# wsl2linux
+# wsl2win
 Tool for converting paths in a WSL environment to their corresponding Windows path 
