@@ -13,6 +13,8 @@ char* end = tmp_buf;
 
 void tmp_append_cstr(const char* str)
 {
+    if (str == NULL)
+        return;
     int len = strlen(str);
     if (tmp_size + len > BUF_SIZE) {
         fprintf(stderr, "ERROR: maximum tmp buffer capacity was reached!\n");
@@ -95,7 +97,6 @@ char* abspath(char* filepath)
         fullpath = tmp_end();
         tmp_append_cstr(cwd_path); tmp_append_chr('/');
         tmp_append_cstr(filepath); tmp_append_chr('\0');
-        printf("Full path: %s\n", fullpath);
     } else {
         fullpath = filepath;
     }
@@ -145,11 +146,16 @@ int main(int argc, char** argv)
         filepath = argv[1];
     }
 
+    // Get the absolute path
     char* fullpath = abspath(filepath);
 
     char* result = tmp_end();
 
     char* wsl_distro_name = getenv("WSL_DISTRO_NAME");
+    if (wsl_distro_name == NULL || strlen(wsl_distro_name) < 1) {
+        fprintf(stderr, "What are you doing here? You're not even in a WSL environment! (WSL_DISTRO_NAME must be set)\n");
+        exit(1);
+    }
     tmp_append_cstr(WSL_PREFIX);
     tmp_append_cstr(wsl_distro_name);
 
@@ -158,7 +164,7 @@ int main(int argc, char** argv)
     tmp_append_cstr(fullpath);
     if (contains_space) tmp_append_chr(ESCAPE_CHAR);
     tmp_append_chr('\0');
-    printf("Result: %s\n", result);
+    printf("%s\n", result);
     free(fullpath);
 
     return 0;
